@@ -1,0 +1,11 @@
+[
+    {
+    "ParameterKey": "VpcCIDR",
+    "ParameterValue": "10.192.0.0/17"
+    },
+    {
+    "ParameterKey": "EnvironmentName",
+    "ParameterValue": "dev"
+    }
+
+]
