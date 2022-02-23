@@ -6,27 +6,11 @@ Parameters:
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
     Type: String
-    Default: dev
 
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
-    Default: 10.192.0.0/16
-
-  PublicSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
-    Type: String
-    Default: 10.192.10.0/24
-
-  PublicSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.11.0/24
-
-  PublicSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
-    Type: String
-    Default: 10.192.12.0/24
+    Default: 10.0.0.0/16
 
 Resources:
   VPC:
@@ -57,7 +41,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: !Ref PublicSubnet1CIDR
+      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -68,7 +52,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs ""]
-      CidrBlock: !Ref PublicSubnet2CIDR
+      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -79,7 +63,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [2, !GetAZs ""]
-      CidrBlock: !Ref PublicSubnet3CIDR
+      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
