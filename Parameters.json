@@ -6,6 +6,9 @@
     {
     "ParameterKey": "EnvironmentName",
     "ParameterValue": "dev"
+    },
+    {
+    "ParameterKey": "DestinationRouteCIDR",
+    "ParameterValue": "0.0.0.0/0"
     }
-
 ]

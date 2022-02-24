@@ -12,6 +12,11 @@ Parameters:
     Type: String
     Default: 10.0.0.0/16
 
+  DestinationRouteCIDR:
+    Description: Destination CIDR for Route
+    Type: String
+    Default: 0.0.0.0/0
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -82,7 +87,7 @@ Resources:
     DependsOn: InternetGatewayAttachment
     Properties:
       RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
+      DestinationCidrBlock: !Ref DestinationRouteCIDR
       GatewayId: !Ref InternetGateway
 
   PublicSubnet1RouteTableAssociation:
