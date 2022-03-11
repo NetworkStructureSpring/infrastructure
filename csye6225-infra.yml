@@ -47,6 +47,67 @@ Parameters:
     Type: String
     Default: ""
 
+  DomainName:
+    Description: Domain Name
+    Type: String
+    Default: dev.domain.tld
+
+  Family:
+    Description: Family Name
+    Type: String
+    Default: postgres13
+
+  Engine:
+    Description: Engine
+    Type: String
+    Default: postgres
+
+  InstanceClass:
+    Description: Instance Class
+    Type: String
+    Default: db.t3.micro
+
+  DBInstanceID:
+    Default: csye6225
+    Description: My database instance
+    Type: String
+    MinLength: "1"
+    MaxLength: "63"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: >-
+      Must begin with a letter and must not end with a hyphen or contain two
+      consecutive hyphens.
+  DBName:
+    Default: csye6225
+    Description: My database
+    Type: String
+    MinLength: "1"
+    MaxLength: "64"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+  DBAllocatedStorage:
+    Default: "50"
+    Description: The size of the database (GiB)
+    Type: Number
+    MinValue: "20"
+    MaxValue: "65536"
+    ConstraintDescription: must be between 20 and 65536 GiB.
+  DBUsername:
+    NoEcho: "true"
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: "1"
+    MaxLength: "16"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    NoEcho: "true"
+    Description: Password MySQL database access
+    Type: String
+    MinLength: "8"
+    MaxLength: "41"
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: must contain only alphanumeric characters.
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -76,7 +137,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [0, !GetAZs ""]
-      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
+      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -87,7 +148,7 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [1, !GetAZs ""]
-      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
+      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
@@ -98,44 +159,11 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       AvailabilityZone: !Select [2, !GetAZs ""]
-      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
+      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Public Subnet (AZ3)
-
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
-      CidrBlock: !Select [0, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
-
- PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
-      CidrBlock: !Select [1, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)   
-
- PrivateSubnet3:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 2, !GetAZs  '' ]
-      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 3, 8]]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)   
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -171,6 +199,63 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet3
 
+  application:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref SecurityGroupName
+      GroupDescription: !Ref SecurityGroupDescription
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Select [3, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Select [4, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      CidrBlock: !Select [5, !Cidr [!GetAtt VPC.CidrBlock, 6, 8]]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -178,10 +263,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} Private Routes (AZ1)
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
 
   PrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -201,36 +282,124 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet3
 
-  application:
+  myDBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: description
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+        - !Ref PrivateSubnet3
+
+  database:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Ref SecurityGroupName
-      GroupDescription: !Ref SecurityGroupDescription
+      GroupName: DatabaseSG
+      GroupDescription: "Database Security Group"
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-        - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
+        IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        SourceSecurityGroupId: !GetAtt application.GroupId
 
-  database: 
-    Type: AWS::RDS::DBSecurityGroup
-    Properties: 
-      EC2VpcId: Ref: "VPC"
-      DBSecurityGroupIngress: 
-        - EC2SecurityGroupName: Ref: "application"
-        - IpProtocol: tcp
-          FromPort: 5432
-          ToPort: 5432
-      GroupDescription: "Database Access"
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Description: Creating Amazon S3 bucket
+    Properties:
+      BucketName: !Join
+        - "-"
+        - - !Select
+            - 0
+            - !Split
+              - "-"
+              - !Select
+                - 2
+                - !Split
+                  - "/"
+                  - !Ref "AWS::StackId"
+          - !Ref DomainName
+
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: Rule for transition from Standard storage to Standard_IA
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+            Status: Enabled
+      VersioningConfiguration:
+        Status: Enabled
+
+  RDSDBParameterGroup:
+    Type: "AWS::RDS::DBParameterGroup"
+    Properties:
+      Description: CloudFormation Postgres Parameter Group
+      Family: postgres13
+
+  MyDB:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      Engine: postgres
+      DBInstanceClass: db.t3.micro
+      MultiAZ: false
+      DBInstanceIdentifier: !Ref DBInstanceID
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref myDBSubnetGroup
+      PubliclyAccessible: false
+      DBName: !Ref DBName
+      VPCSecurityGroups: [!Ref database]
+      DBParameterGroupName: !Ref RDSDBParameterGroup
+      AllocatedStorage: !Ref DBAllocatedStorage
+
+  EC2CSYE6225:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+
+  RootInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - Ref: "EC2CSYE6225"
+
+  WebAppS3:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "myWebAppS3"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Resource:
+              - !Join [":::", ["arn:aws:s3", !Ref S3Bucket]]
+              - !Join ["/", [!Join [":::", ["arn:aws:s3", !Ref S3Bucket]], "*"]]
+      Roles:
+        - Ref: "EC2CSYE6225"
 
   EC2Instance:
     Type: "AWS::EC2::Instance"
@@ -251,27 +420,21 @@ Resources:
             VolumeType: !Ref Volume
             DeleteOnTermination: true
             VolumeSize: !Ref Size
-
-  S3Bucket:
-    Type: AWS::S3::Bucket
-    Description: Creating Amazon S3 bucket
-    Properties:
-      BucketName: MyBucket.${EnvironmentName}.domain.tld
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      LifecycleConfiguration:
-        Rules:
-          - Id: Rule for transition from Standard storage to Standard_IA
-            Transitions:
-              - TransitionInDays: 30
-                StorageClass: STANDARD_IA
-      VersioningConfiguration:
-        Status: Enabled
+      IamInstanceProfile: !Ref RootInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          cat > /etc/environment << 'EOF'
+            export DB_USERNAME="csye"
+            export DB_PASSWORD="Fall20211"
+            export DB_NAME="csye6225"
+            export DB_CONNECTION=${MyDB.Endpoint.Address}
+            export S3_BUCKET_NAME="${S3Bucket}
+          EOF
+          source /etc/profile
+          cd /home/ec2-user/webservice
+          rm -rf node_modules
+          sudo npm i
+          sudo systemctl enable myapp
+          sudo systemctl start myapp
+          sudo pm2 reload all --update-env

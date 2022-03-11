@@ -21,7 +21,7 @@
     },
     {
         "ParameterKey": "AMIImage",
-        "ParameterValue": "ami-0767ee12072e04547"   
+        "ParameterValue": "ami-05316a18651b2c22b"   
     },
     {
         "ParameterKey": "Key",
@@ -33,7 +33,44 @@
     },
     {
         "ParameterKey": "Size",
-        "ParameterValue": "20"   
+        "ParameterValue": "10"   
+    },
+    {
+        "ParameterKey": "DomainName",
+        "ParameterValue": "dev.domain.tld"   
+    },
+    {
+        "ParameterKey": "Family",
+        "ParameterValue": "postgres13"   
+    },
+    {
+        "ParameterKey": "Engine",
+        "ParameterValue": "postgres"   
+    },
+    {
+        "ParameterKey": "InstanceClass",
+        "ParameterValue": "db.t3.micro"   
+    },
+    {
+        "ParameterKey": "DBInstanceID",
+        "ParameterValue": "csye6225"   
+    },
+    {
+        "ParameterKey": "DBName",
+        "ParameterValue": "csye6225"   
+    },
+    {
+        "ParameterKey": "DBAllocatedStorage",
+        "ParameterValue": "20"
+    },
+    {
+        "ParameterKey": "DBUsername",
+        "ParameterValue": "csye"
+    },
+    {
+        "ParameterKey": "DBPassword",
+        "ParameterValue": "Fall20211"
     }
+
     
 ]
