@@ -21,7 +21,7 @@
     },
     {
         "ParameterKey": "AMIImage",
-        "ParameterValue": "ami-05316a18651b2c22b"   
+        "ParameterValue": "ami-05dadc5cc70d66fc9"   
     },
     {
         "ParameterKey": "Key",

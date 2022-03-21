@@ -6,67 +6,54 @@ Parameters:
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
     Type: String
-
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
     Default: 10.0.0.0/16
-
   DestinationRouteCIDR:
     Description: Destination CIDR for Route
     Type: String
     Default: 0.0.0.0/0
-
   SecurityGroupName:
     Description: Security Group Name
     Type: String
     Default: ""
-
   SecurityGroupDescription:
     Description: Security Group Description
     Type: String
     Default: ""
-
   AMIImage:
     Description: AMI Id
     Type: String
     Default: ""
-
   Key:
     Description: Key
     Type: String
     Default: ""
-
   Volume:
     Description: Volume Type
     Type: String
     Default: ""
-
   Size:
     Description: Size
     Type: String
     Default: ""
-
   DomainName:
     Description: Domain Name
     Type: String
     Default: dev.domain.tld
-
   Family:
     Description: Family Name
     Type: String
     Default: postgres13
-
   Engine:
     Description: Engine
     Type: String
     Default: postgres
-
   InstanceClass:
     Description: Instance Class
     Type: String
     Default: db.t3.micro
-
   DBInstanceID:
     Default: csye6225
     Description: My database instance
@@ -206,22 +193,21 @@ Resources:
       GroupDescription: !Ref SecurityGroupDescription
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+        #   FromPort: 80
+        #   ToPort: 80
+        #   CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+        #   FromPort: 443
+        #   ToPort: 443
+        #   CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !GetAtt loadbalancer.GroupId
 
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
@@ -438,3 +424,144 @@ Resources:
           sudo systemctl enable myapp
           sudo systemctl start myapp
           sudo pm2 reload all --update-env
+
+  loadbalancer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: LoadBalancerSG
+      GroupDescription: "Load Balancer Security Group"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+
+  autoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      Cooldown: "60"
+      MinSize: "3"
+      MaxSize: "5"
+      DesiredCapacity: "3"
+      LaunchConfigurationName: !Ref autoScalingLaunchConfig
+      Tags:
+        - Key: "Name"
+          PropagateAtLaunch: true
+          Value: "AutoScalingGroup"
+
+  autoScalingLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      IamInstanceProfile: !Ref RootInstanceProfile
+      ImageId: !Ref AMIImage
+      InstanceType: t2.micro
+      KeyName: !Ref Key
+      LaunchConfigurationName: autoScalingLaunchConfig
+      SecurityGroups:
+        - !GetAtt "application.GroupId"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          cat > /etc/environment << 'EOF'
+            export DB_USERNAME="csye"
+            export DB_PASSWORD="Fall20211"
+            export DB_NAME="csye6225"
+            export DB_CONNECTION=${MyDB.Endpoint.Address}
+            export S3_BUCKET_NAME="${S3Bucket}
+          EOF
+          source /etc/profile
+          cd /home/ec2-user/webservice
+          rm -rf node_modules
+          sudo npm i
+          sudo systemctl enable myapp
+          sudo systemctl start myapp
+          sudo pm2 reload all --update-env
+
+  scaleUpPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoScalingGroup
+      ScalingAdjustment: 1
+
+  scaleDownPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoScalingGroup
+      ScalingAdjustment: -1
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: High CPU alarm for my instance
+      AlarmName: CPU Alarm High
+      AlarmActions:
+        - !Ref scaleUpPolicy
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: "60"
+      EvaluationPeriods: "1"
+      Threshold: "5"
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref autoScalingGroup
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Low CPU alarm for my instance
+      AlarmName: CPU Alarm Low
+      AlarmActions:
+        - !Ref scaleDownPolicy
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: "60"
+      EvaluationPeriods: "1"
+      Threshold: "3"
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref autoScalingGroup
+
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Listeners:
+        - InstancePort: "3000"
+          InstanceProtocol: HTTP
+          LoadBalancerPort: "80"
+          Protocol: HTTP
+      SecurityGroups:
+        - !GetAtt loadbalancer.GroupId
+      LoadBalancerName: myLoadBalancer
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+        - !Ref PublicSubnet3
+      Instances:
+        - !Ref EC2Instance
+
+  myDNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: dev.sonalisingh30.me.
+      RecordSets:
+        - Name: dev.sonalisingh30.me.
+          Type: A
+          AliasTarget:
+            DNSName: !GetAtt "MyLoadBalancer.DNSName"
+            HostedZoneId: !GetAtt "MyLoadBalancer.CanonicalHostedZoneNameID"
