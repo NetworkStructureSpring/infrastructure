@@ -26,6 +26,6 @@
 * set AWS_PROFILE=dev
 * set AWS_REGION=us-east-1
 * aws ec2 describe-vpcs
-* aws cloudformation deploy --profile dev --stack-name teststack --template-file csye6225-infra.yml --parameter-overrides file://Parameters.json
+* aws cloudformation deploy --profile dev --stack-name teststack --template-file csye6225-infra.yml --parameter-overrides file://Parameters.json --capabilities CAPABILITY_IAM
 *  aws cloudformation delete-stack --stack-name teststack
   
