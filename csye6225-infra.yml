@@ -692,6 +692,8 @@ Resources:
           Value: AutoScalingGroup
           Type: KEY_AND_VALUE
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      AutoScalingGroups:
+        - !Ref autoScalingGroup
       AutoRollbackConfiguration:
         Enabled: "true"
         Events:
