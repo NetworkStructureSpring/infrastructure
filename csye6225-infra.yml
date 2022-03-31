@@ -391,11 +391,11 @@ Resources:
               - s3:GetObject
               - s3:List*
             Resource:
-              - !Join [":::", ["arn:aws:s3", "aws-codedeploy-dev-sonali"]]
+              - !Join [":::", ["arn:aws:s3", "aws-codedeploy-demo-sonali"]]
               - !Join [
                   "/",
                   [
-                    !Join [":::", ["arn:aws:s3", "aws-codedeploy-dev-sonali"]],
+                    !Join [":::", ["arn:aws:s3", "aws-codedeploy-demo-sonali"]],
                     "*",
                   ],
                 ]
@@ -428,9 +428,9 @@ Resources:
         - !Ref PublicSubnet2
         - !Ref PublicSubnet3
       Cooldown: "60"
-      MinSize: "3"
-      MaxSize: "5"
-      DesiredCapacity: "3"
+      MinSize: "1"
+      MaxSize: "2"
+      DesiredCapacity: "1"
       LaunchConfigurationName: !Ref autoScalingLaunchConfig
       Tags:
         - Key: "Name"
@@ -559,9 +559,9 @@ Resources:
   myDNSRecord:
     Type: AWS::Route53::RecordSetGroup
     Properties:
-      HostedZoneName: dev.sonalisingh30.me.
+      HostedZoneName: prod.sonalisingh30.me.
       RecordSets:
-        - Name: dev.sonalisingh30.me.
+        - Name: prod.sonalisingh30.me.
           Type: A
           AliasTarget:
             DNSName: !GetAtt "MyLoadBalancer.DNSName"
@@ -582,68 +582,78 @@ Resources:
               - "s3:GetObjectVersion"
               - "s3:Delete*"
             Resource:
-              - "arn:aws:s3:::aws-codedeploy-dev-sonali"
-              - "arn:aws:s3:::aws-codedeploy-dev-sonali/*"
+              - "arn:aws:s3:::aws-codedeploy-demo-sonali"
+              - "arn:aws:s3:::aws-codedeploy-demo-sonali/*"
       Users:
         - ghactions-app
 
   GHCodeDeploy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: startS3
-      Users:
-        - ghactions-app
+      PolicyName: "GHCodeDeploy"
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: 2012-10-17
         Statement:
-          - Effect: Allow
-            Action:
-              - codedeploy:RegisterApplicationRevision
-              - codedeploy:GetApplicationRevision
-            Resource:
-              - !Join [
-                  "",
-                  [
-                    "arn:aws:codedeploy:us-east-1:",
-                    !Ref "AWS::AccountId",
-                    ":application:",
-                    !Ref csye6225webapp,
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "codedeploy:RegisterApplicationRevision",
+                  "codedeploy:GetApplicationRevision",
+                ],
+              "Resource":
+                [
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":application:csye6225webapp",
+                    ],
                   ],
-                ]
-          - Effect: Allow
-            Action:
-              - "codedeploy:CreateDeployment"
-              - "codedeploy:GetDeployment"
-            Resource:
-              - "*"
-          - Effect: Allow
-            Action:
-              - codedeploy:GetDeploymentConfig
-            Resource:
-              - !Join [
-                  "",
-                  [
-                    "arn:aws:codedeploy:us-east-1:",
-                    !Ref "AWS::AccountId",
-                    "deploymentconfig:CodeDeployDefault.OneAtATime",
+                ],
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                ["codedeploy:CreateDeployment", "codedeploy:GetDeployment"],
+              "Resource": ["*"],
+            },
+            {
+              "Effect": "Allow",
+              "Action": ["codedeploy:GetDeploymentConfig"],
+              "Resource":
+                [
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.OneAtATime",
+                    ],
                   ],
-                ]
-              - !Join [
-                  "",
-                  [
-                    "arn:aws:codedeploy:us-east-1:",
-                    !Ref "AWS::AccountId",
-                    "deploymentconfig:CodeDeployDefault.HalfAtATime",
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.HalfAtATime",
+                    ],
                   ],
-                ]
-              - !Join [
-                  "",
-                  [
-                    "arn:aws:codedeploy:us-east-1:",
-                    !Ref "AWS::AccountId",
-                    "deploymentconfig:CodeDeployDefault.AllAtOnce",
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.AllAtOnce",
+                    ],
                   ],
-                ]
+                ],
+            },
+          ]
+      Users:
+        - "ghactions-app"
 
   CodeDeployServiceRole:
     Type: "AWS::IAM::Role"
