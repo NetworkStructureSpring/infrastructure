@@ -379,6 +379,29 @@ Resources:
       Roles:
         - Ref: "EC2CSYE6225"
 
+  CodeDeployEC2S3:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "CodeDeployEC2S3"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - s3:GetObject
+              - s3:List*
+            Resource:
+              - !Join [":::", ["arn:aws:s3", "aws-codedeploy-demo-sonali"]]
+              - !Join [
+                  "/",
+                  [
+                    !Join [":::", ["arn:aws:s3", "aws-codedeploy-demo-sonali"]],
+                    "*",
+                  ],
+                ]
+      Roles:
+        - !Ref EC2CSYE6225
+
   loadbalancer:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -405,9 +428,9 @@ Resources:
         - !Ref PublicSubnet2
         - !Ref PublicSubnet3
       Cooldown: "60"
-      MinSize: "3"
-      MaxSize: "5"
-      DesiredCapacity: "3"
+      MinSize: "1"
+      MaxSize: "2"
+      DesiredCapacity: "1"
       LaunchConfigurationName: !Ref autoScalingLaunchConfig
       Tags:
         - Key: "Name"
@@ -536,10 +559,188 @@ Resources:
   myDNSRecord:
     Type: AWS::Route53::RecordSetGroup
     Properties:
-      HostedZoneName: dev.sonalisingh30.me.
+      HostedZoneName: prod.sonalisingh30.me.
       RecordSets:
-        - Name: dev.sonalisingh30.me.
+        - Name: prod.sonalisingh30.me.
           Type: A
           AliasTarget:
             DNSName: !GetAtt "MyLoadBalancer.DNSName"
             HostedZoneId: !GetAtt "MyLoadBalancer.CanonicalHostedZoneID"
+
+  GHUploadToS3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: UploadToS3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:Get*
+              - s3:List*
+              - "s3:GetObjectVersion"
+              - "s3:Delete*"
+            Resource:
+              - "arn:aws:s3:::aws-codedeploy-demo-sonali"
+              - "arn:aws:s3:::aws-codedeploy-demo-sonali/*"
+      Users:
+        - ghactions-app
+
+  GHCodeDeploy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "GHCodeDeploy"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          [
+            {
+              "Effect": "Allow",
+              "Action":
+                [
+                  "codedeploy:RegisterApplicationRevision",
+                  "codedeploy:GetApplicationRevision",
+                ],
+              "Resource":
+                [
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":application:csye6225webapp",
+                    ],
+                  ],
+                ],
+            },
+            {
+              "Effect": "Allow",
+              "Action":
+                ["codedeploy:CreateDeployment", "codedeploy:GetDeployment"],
+              "Resource": ["*"],
+            },
+            {
+              "Effect": "Allow",
+              "Action": ["codedeploy:GetDeploymentConfig"],
+              "Resource":
+                [
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.OneAtATime",
+                    ],
+                  ],
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.HalfAtATime",
+                    ],
+                  ],
+                  !Join [
+                    "",
+                    [
+                      "arn:aws:codedeploy:us-east-1:",
+                      !Ref "AWS::AccountId",
+                      ":deploymentconfig:CodeDeployDefault.AllAtOnce",
+                    ],
+                  ],
+                ],
+            },
+          ]
+      Users:
+        - "ghactions-app"
+
+  CodeDeployServiceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "codedeploy.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+      Path: "/"
+
+  csye6225webapp:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ComputePlatform: Server
+      ApplicationName: csye6225webapp
+
+  csye6225webappdeployment:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn: csye6225webapp
+    Properties:
+      ApplicationName: !Ref csye6225webapp
+      DeploymentGroupName: csye6225webappdeployment
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentStyle:
+        DeploymentType: IN_PLACE
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+      Ec2TagFilters:
+        - Key: Name
+          Value: AutoScalingGroup
+          Type: KEY_AND_VALUE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      AutoScalingGroups:
+        - !Ref autoScalingGroup
+      AutoRollbackConfiguration:
+        Enabled: "true"
+        Events:
+          - DEPLOYMENT_FAILURE
+
+  ghec2ami:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: gh-ec2-ami
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ec2:AttachVolume"
+              - "ec2:AuthorizeSecurityGroupIngress"
+              - "ec2:CopyImage"
+              - "ec2:CreateImage"
+              - "ec2:CreateKeypair"
+              - "ec2:CreateSecurityGroup"
+              - "ec2:CreateSnapshot"
+              - "ec2:CreateTags"
+              - "ec2:CreateVolume"
+              - "ec2:DeleteKeyPair"
+              - "ec2:DeleteSecurityGroup"
+              - "ec2:DeleteSnapshot"
+              - "ec2:DeleteVolume"
+              - "ec2:DeregisterImage"
+              - "ec2:DescribeImageAttribute"
+              - "ec2:DescribeImages"
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeInstanceStatus"
+              - "ec2:DescribeRegions"
+              - "ec2:DescribeSecurityGroups"
+              - "ec2:DescribeSnapshots"
+              - "ec2:DescribeSubnets"
+              - "ec2:DescribeTags"
+              - "ec2:DescribeVolumes"
+              - "ec2:DetachVolume"
+              - "ec2:GetPasswordData"
+              - "ec2:ModifyImageAttribute"
+              - "ec2:ModifyInstanceAttribute"
+              - "ec2:ModifySnapshotAttribute"
+              - "ec2:RegisterImage"
+              - "ec2:RunInstances"
+              - "ec2:StopInstances"
+              - "ec2:TerminateInstances"
+            Resource: "*"
+      Users:
+        - ghactions-app
