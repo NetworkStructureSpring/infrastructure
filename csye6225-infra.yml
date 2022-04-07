@@ -431,13 +431,13 @@ Resources:
       MinSize: "1"
       MaxSize: "2"
       DesiredCapacity: "1"
-      LaunchConfigurationName: !Ref autoScalingLaunchConfig
+      LaunchConfigurationName: !Ref autoScalingLaunchConfig1
       Tags:
         - Key: "Name"
           PropagateAtLaunch: true
           Value: "AutoScalingGroup"
 
-  autoScalingLaunchConfig:
+  autoScalingLaunchConfig1:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       AssociatePublicIpAddress: true
@@ -445,7 +445,7 @@ Resources:
       ImageId: !Ref AMIImage
       InstanceType: t2.micro
       KeyName: !Ref Key
-      LaunchConfigurationName: autoScalingLaunchConfig
+      LaunchConfigurationName: autoScalingLaunchConfig1
       SecurityGroups:
         - !GetAtt "application.GroupId"
       UserData:
@@ -465,6 +465,7 @@ Resources:
           sudo systemctl enable myapp
           sudo systemctl start myapp
           sudo pm2 reload all --update-env
+          sudo service codedeploy-agent start
 
   scaleUpPolicy:
     Type: "AWS::AutoScaling::ScalingPolicy"
@@ -744,3 +745,29 @@ Resources:
             Resource: "*"
       Users:
         - ghactions-app
+
+  CloudWatchAgentServerPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchAgentServerPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "cloudwatch:PutMetricData"
+              - "ec2:DescribeVolumes"
+              - "ec2:DescribeTags"
+              - "logs:PutLogEvents"
+              - "logs:DescribeLogStreams"
+              - "logs:DescribeLogGroups"
+              - "logs:CreateLogStream"
+              - "logs:CreateLogGroup"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ssm:GetParameter"
+            Resource:
+              - arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*
+      Roles:
+        - Ref: "EC2CSYE6225"
