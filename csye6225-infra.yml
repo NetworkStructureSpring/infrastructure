@@ -431,13 +431,13 @@ Resources:
       MinSize: "1"
       MaxSize: "2"
       DesiredCapacity: "1"
-      LaunchConfigurationName: !Ref autoScalingLaunchConfig1
+      LaunchConfigurationName: !Ref autoScalingLaunchConfig
       Tags:
         - Key: "Name"
           PropagateAtLaunch: true
           Value: "AutoScalingGroup"
 
-  autoScalingLaunchConfig1:
+  autoScalingLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       AssociatePublicIpAddress: true
@@ -445,7 +445,7 @@ Resources:
       ImageId: !Ref AMIImage
       InstanceType: t2.micro
       KeyName: !Ref Key
-      LaunchConfigurationName: autoScalingLaunchConfig1
+      LaunchConfigurationName: autoScalingLaunchConfig
       SecurityGroups:
         - !GetAtt "application.GroupId"
       UserData:
