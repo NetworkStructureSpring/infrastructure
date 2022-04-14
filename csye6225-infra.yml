@@ -379,6 +379,55 @@ Resources:
       Roles:
         - Ref: "EC2CSYE6225"
 
+  WebAppDynamoDB:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "WebAppDynamoDB"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - dynamodb:List*
+              - dynamodb:DescribeReservedCapacity*
+              - dynamodb:DescribeLimits
+              - dynamodb:DescribeTimeToLive
+            Resource:
+              - "*"
+          - Effect: "Allow"
+            Action:
+              - dynamodb:BatchGet*
+              - dynamodb:DescribeStream
+              - dynamodb:DescribeTable
+              - dynamodb:Get*
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchWrite*
+              - dynamodb:CreateTable
+              - dynamodb:Delete*
+              - dynamodb:Update*
+              - dynamodb:PutItem
+            Resource:
+              - arn:aws:dynamodb:*:*:table/TokenTable
+
+      Roles:
+        - Ref: "EC2CSYE6225"
+
+  WebAppSNSPublish:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "WebAppSNSPublish"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - sns:Publish
+            Resource:
+              - !Ref NotificationSNS
+      Roles:
+        - Ref: "EC2CSYE6225"
+
   CodeDeployEC2S3:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -771,3 +820,116 @@ Resources:
               - arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*
       Roles:
         - Ref: "EC2CSYE6225"
+
+  NotificationSNS:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: "MailNotification"
+      Subscription:
+        - Protocol: lambda
+          Endpoint: !GetAtt LambdaFunction.Arn
+
+  LambdaFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaRole"
+      Path: "/"
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: nodejs12.x
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          exports.handler = function(event, context, callback) {
+              console.log('Message received from SNS:');
+          };
+      Description: Invoke a function during stack creation.
+      FunctionName: MailingServiceFunction
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref NotificationSNS
+      FunctionName: !GetAtt LambdaFunction.Arn
+
+  TokenTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "TokenName"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "TokenName"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "5"
+        WriteCapacityUnits: "5"
+      TimeToLiveSpecification:
+        AttributeName: TimeToLive
+        Enabled: true
+      TableName: "TokenTable"
+
+  UsernameDynamoDB:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "UsernameDynamoDB"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - dynamodb:List*
+              - dynamodb:DescribeReservedCapacity*
+              - dynamodb:DescribeLimits
+              - dynamodb:DescribeTimeToLive
+            Resource:
+              - "*"
+          - Effect: "Allow"
+            Action:
+              - dynamodb:BatchGet*
+              - dynamodb:DescribeStream
+              - dynamodb:DescribeTable
+              - dynamodb:Get*
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchWrite*
+              - dynamodb:CreateTable
+              - dynamodb:Delete*
+              - dynamodb:Update*
+              - dynamodb:PutItem
+            Resource:
+              - arn:aws:dynamodb:*:*:table/UsernameTokenTable
+      Roles:
+        - Ref: LambdaFunctionRole
+
+  UsernameTokenTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "Username"
+          AttributeType: "S"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "7"
+        WriteCapacityUnits: "7"
+      KeySchema:
+        - AttributeName: "Username"
+          KeyType: "HASH"
+      TableName: "UsernameTokenTable"
