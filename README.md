@@ -28,4 +28,14 @@
 * aws ec2 describe-vpcs
 * aws cloudformation deploy --profile dev --stack-name teststack --template-file csye6225-infra.yml --parameter-overrides file://Parameters.json --capabilities CAPABILITY_IAM
 *  aws cloudformation delete-stack --stack-name teststack
+
+
+sudo amazon-linux-extras install postgresql13 -y
+sudo yum install -y postgresql13 -y
+sudo psql --version
+psql --host=csye6225.couixgkja1id.us-east-1.rds.amazonaws.com  --port=5432 --username=csye --password --dbname=csye6225
   
+SELECT datname,usename, ssl, client_addr FROM pg_stat_ssl JOIN pg_stat_activity ON pg_stat_ssl.pid = pg_stat_activity.pid;
+
+
+aws acm import-certificate --certificate fileb://Certificate.pem --certificate-chain fileb://CertificateChain.pem --private-key fileb://PrivateKey.pem

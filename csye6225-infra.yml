@@ -339,6 +339,8 @@ Resources:
       VPCSecurityGroups: [!Ref database]
       DBParameterGroupName: !Ref RDSDBParameterGroup
       AllocatedStorage: !Ref DBAllocatedStorage
+      KmsKeyId: !Ref rdsKey
+      StorageEncrypted: true
 
   EC2CSYE6225:
     Type: "AWS::IAM::Role"
@@ -477,44 +479,61 @@ Resources:
         - !Ref PublicSubnet2
         - !Ref PublicSubnet3
       Cooldown: "60"
-      MinSize: "1"
-      MaxSize: "2"
-      DesiredCapacity: "1"
-      LaunchConfigurationName: !Ref autoScalingLaunchConfig
+      MinSize: "3"
+      MaxSize: "5"
+      DesiredCapacity: "3"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref autoScalingLaunchConfig
+        Version: !GetAtt autoScalingLaunchConfig.LatestVersionNumber
       Tags:
         - Key: "Name"
           PropagateAtLaunch: true
           Value: "AutoScalingGroup"
 
   autoScalingLaunchConfig:
-    Type: AWS::AutoScaling::LaunchConfiguration
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      AssociatePublicIpAddress: true
-      IamInstanceProfile: !Ref RootInstanceProfile
-      ImageId: !Ref AMIImage
-      InstanceType: t2.micro
-      KeyName: !Ref Key
-      LaunchConfigurationName: autoScalingLaunchConfig
-      SecurityGroups:
-        - !GetAtt "application.GroupId"
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          cat > /etc/environment << 'EOF'
-            export DB_USERNAME="csye"
-            export DB_PASSWORD="Fall20211"
-            export DB_NAME="csye6225"
-            export DB_CONNECTION=${MyDB.Endpoint.Address}
-            export S3_BUCKET_NAME="${S3Bucket}
-          EOF
-          source /etc/profile
-          cd /home/ec2-user/webservice
-          rm -rf node_modules
-          sudo npm i
-          sudo systemctl enable myapp
-          sudo systemctl start myapp
-          sudo pm2 reload all --update-env
-          sudo service codedeploy-agent start
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: "/dev/xvda"
+            Ebs:
+              DeleteOnTermination: true
+              Encrypted: true
+              VolumeType: "gp2"
+              VolumeSize: "20"
+              KmsKeyId: !GetAtt myKey.Arn
+        ImageId: !Ref AMIImage
+        InstanceType: t2.micro
+        KeyName: !Ref Key
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            AssociatePublicIpAddress: true
+            DeleteOnTermination: true
+            Groups:
+              - !GetAtt "application.GroupId"
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - RootInstanceProfile
+            - Arn
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            cat > /etc/environment << 'EOF'
+              export DB_USERNAME="csye"
+              export DB_PASSWORD="Fall20211"
+              export DB_NAME="csye6225"
+              export DB_CONNECTION=${MyDB.Endpoint.Address}
+              export S3_BUCKET_NAME="${S3Bucket}
+            EOF
+            source /etc/profile
+            cd /home/ec2-user/webservice
+            rm -rf node_modules
+            sudo npm i
+            sudo systemctl enable myapp
+            sudo systemctl start myapp
+            sudo pm2 reload all --update-env
+            sudo service codedeploy-agent start
 
   scaleUpPolicy:
     Type: "AWS::AutoScaling::ScalingPolicy"
@@ -588,8 +607,10 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref EC2TargetGroupLB
-      Port: 80
-      Protocol: HTTP
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: arn:aws:acm:us-east-1:348023801163:certificate/2be51053-8c11-4def-b96e-e2b4cdb92459
 
   EC2TargetGroupLB:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -933,3 +954,36 @@ Resources:
         - AttributeName: "Username"
           KeyType: "HASH"
       TableName: "UsernameTokenTable"
+
+  myKey:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-rds
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                - arn:aws:iam::348023801163:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+                - arn:aws:iam::348023801163:root
+            Action: "kms:*"
+            Resource: "*"
+
+  rdsKey:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Description: An example symmetric KMS key
+      EnableKeyRotation: true
+      PendingWindowInDays: 20
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::348023801163:root"
+            Action: "kms:*"
+            Resource: "*"
